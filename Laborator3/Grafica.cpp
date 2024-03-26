@@ -12,8 +12,11 @@
 #define MODMAX_MS 2.0
 #define RX_MS 0.005
 #define RY_MS 0.005
+#define M_PI 3.14159265358979323846
 unsigned char prevKey;
-int level = 0;
+int level_desen_2 = 0;
+int level_desen_3 = 0;
+int level_desen_4 = 0;
 
 class CComplex {
 public:
@@ -490,6 +493,61 @@ private:
 };
 
 
+class Sierpinskis_arrowhead   
+{
+public:
+    struct DrawingState
+    {
+        double x;
+        double y;
+        int unghi;
+    };
+
+
+    void drawState(DrawingState* state, double lungime)
+    {
+       
+        double theta = (M_PI * state->unghi) / 180.0;
+        state->x += lungime * cos(theta);
+        state->y += lungime * sin(theta);
+        glVertex2f(state->x, state->y);
+    }
+
+    void fractal(int nivel, double lungime, DrawingState* state, int unghi)
+    {
+        if (nivel == 0)
+        {
+            drawState(state, lungime);
+        }
+        else
+        {
+            fractal(nivel - 1, lungime / 2, state, -unghi);
+            state->unghi = (state->unghi + unghi) % 360;
+
+            fractal(nivel - 1, lungime / 2, state, unghi);
+            state->unghi = (state->unghi + unghi) % 360;
+
+            fractal(nivel - 1, lungime / 2, state, -unghi);
+        }
+    }
+
+    void display(double lungime, int nivel)
+    {
+        DrawingState state;
+        state.unghi = 90;
+        state.x = 0.0 - lungime * 0.5;
+        state.y = 0.0 - lungime * 0.5;
+
+        if (nivel % 2 != 0) 
+            state.unghi = (state.unghi - 60) % 360;
+
+        glColor3f(1.0, 0.1, 0.1);
+        glBegin(GL_LINE_STRIP);
+        glVertex2f(state.x, state.y);
+        fractal(nivel, lungime, &state, 60);
+        glEnd();
+    }
+};
 
 void Display1()
 {
@@ -507,7 +565,7 @@ void Display2()
     Sierpinskis_carpet f1;
 
     char c[3];
-    sprintf_s(c, sizeof(c), "%2d", level);
+    sprintf_s(c, sizeof(c), "%2d", level_desen_2);
     glRasterPos2d(-0.98, -0.98);
 
     glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'N');
@@ -522,17 +580,16 @@ void Display2()
     glPushMatrix();
     glLoadIdentity();
     glScaled(0.9, 0.9, 1);
-    f1.display(2.0, level);
+    f1.display(2.0, level_desen_2);
     glPopMatrix();
-    level++;
+    level_desen_2++;
 }
-
 
 void Display3()
 {
     LSystemBranch f;
     char c[3];
-    sprintf_s(c, sizeof(c), "%2d", level);
+    sprintf_s(c, sizeof(c), "%2d", level_desen_3);
     glRasterPos2d(-0.98, -0.98);
     glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'N');
     glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'i');
@@ -547,10 +604,29 @@ void Display3()
     glLoadIdentity();
     glScaled(0.4, 0.4, 1);
     glTranslated(-0.5, 0.5, 0.0);
-    f.display(1, level);
+    f.display(1, level_desen_3);
     glPopMatrix();
-    level++;
+    level_desen_3++;
 }
+
+void Display4()
+{
+    Sierpinskis_arrowhead f;
+    char c[3];
+    sprintf_s(c, sizeof(c), "%2d", level_desen_4);
+    glRasterPos2d(-0.98,-0.98);
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'N');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'i');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'v');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'e');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'l');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, '=');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c[0]);
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c[1]);
+    f.display(1.0, level_desen_4);
+
+    level_desen_4++;
+} 
 void Init(void) {
 
     glClearColor(1.0, 1.0, 1.0, 1.0);
@@ -574,6 +650,10 @@ void Display(void) {
         glClear(GL_COLOR_BUFFER_BIT);
 		Display3();
 		break;
+    case '4':
+		glClear(GL_COLOR_BUFFER_BIT);
+        Display4();
+        break;
     default:
         break;
     }
