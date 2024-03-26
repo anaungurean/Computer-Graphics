@@ -12,8 +12,8 @@
 #define MODMAX_MS 2.0
 #define RX_MS 0.005
 #define RY_MS 0.005
-
 unsigned char prevKey;
+int level = 0;
 
 class CComplex {
 public:
@@ -62,7 +62,6 @@ private:
     double re, im;
 };
 
-
 CComplex operator+(const CComplex& c1, const CComplex& c2)
 {
     CComplex rez(c1.re + c2.re, c1.im + c2.im);
@@ -75,9 +74,6 @@ CComplex operator*(CComplex& c1, CComplex& c2)
         c1.re * c2.im + c1.im * c2.re);
     return rez;
 }
-
-
-
 
 class CMandelbrotSet {
 public:
@@ -156,9 +152,346 @@ private:
         int nriter;
     } m;
 };
+class C2coord
+{
+public:
+    C2coord()
+    {
+        m.x = m.y = 0;
+    }
+
+    C2coord(double x, double y)
+    {
+        m.x = x;
+        m.y = y;
+    }
+
+    C2coord(const C2coord& p)
+    {
+        m.x = p.m.x;
+        m.y = p.m.y;
+    }
+
+    C2coord& operator=(C2coord& p)
+    {
+        m.x = p.m.x;
+        m.y = p.m.y;
+        return *this;
+    }
+
+    int operator==(C2coord& p)
+    {
+        return ((m.x == p.m.x) && (m.y == p.m.y));
+    }
+
+protected:
+    struct SDate
+    {
+        double x, y;
+    } m;
+};
 
 
-void Display4()
+class CPunct : public C2coord
+{
+public:
+    CPunct() : C2coord(0.0, 0.0)
+    {}
+
+    CPunct(double x, double y) : C2coord(x, y)
+    {}
+
+    CPunct& operator=(const CPunct& p)
+    {
+        m.x = p.m.x;
+        m.y = p.m.y;
+        return *this;
+    }
+
+    void getxy(double& x, double& y)
+    {
+        x = m.x;
+        y = m.y;
+    }
+
+    int operator==(CPunct& p)
+    {
+        return ((m.x == p.m.x) && (m.y == p.m.y));
+    }
+
+    void marcheaza()
+    {
+        glBegin(GL_POINTS);
+        glVertex2d(m.x, m.y);
+        glEnd();
+    }
+
+    void print(FILE* fis)
+    {
+        fprintf(fis, "(%+f,%+f)", m.x, m.y);
+    }
+
+};
+
+class CVector : public C2coord
+{
+public:
+    CVector() : C2coord(0.0, 0.0)
+    {
+        normalizare();
+    }
+
+    CVector(double x, double y) : C2coord(x, y)
+    {
+        normalizare();
+    }
+
+    CVector& operator=(CVector& p)
+    {
+        m.x = p.m.x;
+        m.y = p.m.y;
+        return *this;
+    }
+
+    int operator==(CVector& p)
+    {
+        return ((m.x == p.m.x) && (m.y == p.m.y));
+    }
+
+    CPunct getDest(CPunct& orig, double lungime)
+    {
+        double x, y;
+        orig.getxy(x, y);
+        CPunct p(x + m.x * lungime, y + m.y * lungime);
+        return p;
+    }
+
+    void rotatie(double grade)
+    {
+        double x = m.x;
+        double y = m.y;
+        double t = 2 * (4.0 * atan(1.0)) * grade / 360.0;
+        m.x = x * cos(t) - y * sin(t);
+        m.y = x * sin(t) + y * cos(t);
+        normalizare();
+    }
+
+    void deseneaza(CPunct p, double lungime)
+    {
+        double x, y;
+        p.getxy(x, y);
+        glColor3f(1.0, 0.1, 0.1);
+        glBegin(GL_LINE_STRIP);
+        glVertex2d(x, y);
+        glVertex2d(x + m.x * lungime, y + m.y * lungime);
+        glEnd();
+    }
+
+    void print(FILE* fis)
+    {
+        fprintf(fis, "%+fi %+fj", C2coord::m.x, C2coord::m.y);
+    }
+
+private:
+    // it is used for normalizing a vector
+    void normalizare()
+    {
+        double d = sqrt(C2coord::m.x * C2coord::m.x + C2coord::m.y * C2coord::m.y);
+        if (d != 0.0)
+        {
+            C2coord::m.x = C2coord::m.x * 1.0 / d;
+            C2coord::m.y = C2coord::m.y * 1.0 / d;
+        }
+    }
+};
+
+
+class Sierpinskis_carpet 
+{
+public:
+
+    void draw_square(CPunct &p, double &lungime)
+
+    {
+        CPunct p1;
+        double x, y;
+        CVector v(1.0, 0.0);
+        v.deseneaza(p, lungime);
+
+        p = v.getDest(p, lungime);
+        v.rotatie(-90);
+        v.deseneaza(p, lungime);
+
+        p = v.getDest(p, lungime);
+        v.rotatie(-90);
+        v.deseneaza(p, lungime);
+
+        p = v.getDest(p, lungime);
+        v.rotatie(-90);
+        v.deseneaza(p, lungime);
+
+        v.rotatie(-90);
+
+    }
+
+    void draw_fracal_top_down(CPunct& p, double& lungime, int &level, CVector& v)
+    { 
+        for (int i = 0; i < 3; i++)
+        {
+            fractal(lungime / 3.0, level - 1, p, v);
+            p = v.getDest(p, lungime );
+        }
+
+    }
+
+    void draw_fracal_lateral(CPunct& p, double& lungime, int& level, CVector& v)
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            fractal(lungime / 3.0, level - 1, p, v);
+            p = v.getDest(p, lungime*2.0);
+		}
+	}
+
+    void fractal(double lungime,
+        int level,
+        CPunct p,
+        CVector v)
+    {
+        CPunct p1;
+        double x, y;
+        if (level == 0)
+        {
+            draw_square(p, lungime);
+        }
+        else
+        {
+           draw_square(p, lungime);
+           
+           p1 = p;
+           p.getxy(x, y);
+           p = CPunct(x - 2.0 * lungime / 3.0, y + lungime * 5.0 / 3.0);
+           draw_fracal_top_down(p, lungime, level, v);
+
+           p = p1;
+           p.getxy(x, y);
+           p = CPunct(x - 2.0 * lungime / 3.0, y - lungime / 3.0);
+
+           draw_fracal_top_down(p, lungime, level, v);
+
+           p = p1;
+           p.getxy(x, y);
+           p = CPunct(x - 2.0 * lungime / 3.0, y + lungime / 1.5);
+           draw_fracal_lateral(p, lungime, level, v);
+
+        }
+
+       
+    }
+
+    void display(double lungime, int level)
+    {
+        CVector v(1.0, 0.0);
+        CPunct p(-1.0, 1.0);
+
+        v.deseneaza(p, lungime);
+
+        p = v.getDest(p, lungime);
+        v.rotatie(-90);
+        v.deseneaza(p, lungime);
+
+        p = v.getDest(p, lungime);
+        v.rotatie(-90);
+        v.deseneaza(p, lungime);
+
+        p = v.getDest(p, lungime);
+        v.rotatie(-90);
+        v.deseneaza(p, lungime);
+
+        p = CPunct(-1.0 / 3.0, 1.0 / 3.0);
+        v.rotatie(-90);
+
+        fractal(lungime / 3.0, level, p, v);
+    }
+};
+
+
+class LSystemBranch {
+public:
+
+    void fractal(double lungime,
+        int nivel,
+        double factordiviziune,
+        CPunct &p,
+        CVector v)
+    {
+        assert(factordiviziune != 0);
+        CPunct p1, p2;
+        if (nivel == 0)
+        {
+        }
+        else
+        {
+            drawFirstBranch(lungime, nivel, factordiviziune, p, v);
+            drawSecondBranch(lungime, nivel, factordiviziune, p, v);
+        }
+    }
+
+    void display(double lungime, int nivel)
+    {
+        CVector v(0.0, -1.0);
+        CPunct p(0.0, 1.0);
+
+        v.deseneaza(p, 0.25);
+        p = v.getDest(p, 0.25);
+        fractal(lungime, nivel, 0.4, p, v);
+    }
+
+private:
+    void drawFirstBranch(double lungime, int nivel, double factordiviziune, CPunct &p, CVector v)
+    {
+        v.rotatie(-45);
+        v.deseneaza(p, lungime);
+        CPunct p1 = v.getDest(p, lungime);
+        fractal(lungime * factordiviziune, nivel - 1, factordiviziune, p1, v);
+    }
+
+    void drawSecondBranch(double lungime, int nivel, double factordiviziune, CPunct &p, CVector v)
+    {
+        v.rotatie(45);
+        v.deseneaza(p, lungime);
+        CPunct p1 = v.getDest(p, lungime);
+        CPunct p2 = p1;
+
+        v.rotatie(15);
+        v.deseneaza(p1, lungime);
+        p1 = v.getDest(p1, lungime);
+        fractal(lungime * factordiviziune, nivel - 1, factordiviziune, p1, v);
+
+        p1 = p2;
+        v.rotatie(-60);
+        v.deseneaza(p1, lungime);
+        p1 = v.getDest(p1, lungime);
+        p2 = p1;
+        double f = 0.5;
+
+        v.rotatie(30);
+        v.deseneaza(p1, f * lungime);
+        p1 = v.getDest(p1, f * lungime);
+        fractal(lungime * factordiviziune, nivel - 1, factordiviziune, p1, v);
+
+        p1 = p2;
+        v.rotatie(-120);
+        v.deseneaza(p1, f * lungime);
+        p1 = v.getDest(p1, f * lungime);
+        fractal(lungime * factordiviziune, nivel - 1, factordiviziune, p1, v);
+    }
+
+};
+
+
+
+void Display1()
 {
     CMandelbrotSet f;
     double minX = -2;
@@ -169,7 +502,55 @@ void Display4()
     
 }
 
+void Display2()
+{
+    Sierpinskis_carpet f1;
 
+    char c[3];
+    sprintf_s(c, sizeof(c), "%2d", level);
+    glRasterPos2d(-0.98, -0.98);
+
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'N');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'i');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'v');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'e');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'l');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, '=');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c[0]);
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c[1]);
+
+    glPushMatrix();
+    glLoadIdentity();
+    glScaled(0.9, 0.9, 1);
+    f1.display(2.0, level);
+    glPopMatrix();
+    level++;
+}
+
+
+void Display3()
+{
+    LSystemBranch f;
+    char c[3];
+    sprintf_s(c, sizeof(c), "%2d", level);
+    glRasterPos2d(-0.98, -0.98);
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'N');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'i');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'v');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'e');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, 'l');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, '=');
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c[0]);
+    glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c[1]);
+
+    glPushMatrix();
+    glLoadIdentity();
+    glScaled(0.4, 0.4, 1);
+    glTranslated(-0.5, 0.5, 0.0);
+    f.display(1, level);
+    glPopMatrix();
+    level++;
+}
 void Init(void) {
 
     glClearColor(1.0, 1.0, 1.0, 1.0);
@@ -183,8 +564,16 @@ void Display(void) {
     switch (prevKey) {
     case '1':
         glClear(GL_COLOR_BUFFER_BIT);
-        Display4();
+        Display1();
         break;
+    case '2':
+		glClear(GL_COLOR_BUFFER_BIT);
+		Display2();
+		break;
+    case '3':
+        glClear(GL_COLOR_BUFFER_BIT);
+		Display3();
+		break;
     default:
         break;
     }
